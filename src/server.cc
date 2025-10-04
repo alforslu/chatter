@@ -31,12 +31,26 @@ struct AddrInfoDeleter {
 
 std::string get_timestamp();
 
-Server::Server() { m_port = "5000"; }
-Server::Server(std::string port) { m_port = port; }
+Server::Server() {
+    m_port = "5000";
+    int m_sockfd{-1};
+}
+Server::Server(std::string port) {
+    m_port = port;
+    int m_sockfd{-1};
+}
 
 Server::~Server() {
     if (m_sockfd >= 1) {
         close(m_sockfd);
+    }
+
+    // Make sure all the fd's are closed when server dies
+    // Probably doesn't matter tho, OS would handle
+    for (Client &c : m_clients) {
+        if (c.fd >= 1) {
+            close(c.fd);
+        }
     }
 }
 
@@ -55,7 +69,7 @@ void Server::setup() {
         hints.ai_flags = AI_PASSIVE;     // "This host"
 
         addrinfo *raw = nullptr;
-        if ((status = getaddrinfo(NULL, "5000", &hints, &raw)) != 0) {
+        if ((status = getaddrinfo(NULL, m_port.data(), &hints, &raw)) != 0) {
             std::cerr << "[ERROR > getaddrinfo] " << gai_strerror(status) << "."
                       << std::endl;
             if (i != MAX_RETRY - 1) {
@@ -165,10 +179,13 @@ void Server::run() {
 
             // Handle outgoing messages (this should be rare)
             if (pfd.revents & POLLOUT) {
-                // WARN: Look into if this is fine? 
+                // WARN: Look into if this is fine?
                 // I don't see why it shouldn't be
-                // I'm rebroadcasting to everyone that 
+                // I'm rebroadcasting to everyone that
                 // don't have all the messages.
+                // This includes the ones that aren't ready, but they'll just
+                // error again? Which is fine. It is a little bit of double work
+                // but that doesn't matter at this scale
                 broadcast_messages();
             }
         }
@@ -228,7 +245,7 @@ int Server::handle_recv(pollfd &pfd) {
 
     for (;;) {
         // Read incoming
-        char buf[8192]{}; // Empty
+        char buf[4096]{}; // Empty
 
         // r < 0 = error (or just full buffer etc), r == 0 = bye, r > 0 = msg
         ssize_t r = recv(pfd.fd, buf, sizeof buf, 0);
@@ -284,7 +301,7 @@ void Server::accept_all() {
         socklen_t inc_addr_size = sizeof inc_addr;
         int fd = accept4(m_sockfd, reinterpret_cast<sockaddr *>(&inc_addr),
                          &inc_addr_size, SOCK_NONBLOCK);
-        if (fd <= 0) {
+        if (fd < 0) {
             // No more connections
             return;
         } else {
@@ -299,7 +316,7 @@ void Server::accept_all() {
 }
 
 void Server::remove_client(int fd) {
-    for (int i = 0; i < m_clients.size(); i++) {
+    for (size_t i = 0; i < m_clients.size(); i++) {
         if (m_clients[i].fd == fd) {
             if (DEBUG) {
                 std::cout << "Disconnected: " << fd << std::endl;

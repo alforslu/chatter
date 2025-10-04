@@ -1,12 +1,7 @@
 #pragma once
 
-#include <netdb.h>
 #include <poll.h>
 #include <queue>
-#include <string>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <vector>
 
 namespace chat {
 class Server {
