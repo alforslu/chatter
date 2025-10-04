@@ -248,6 +248,9 @@ int Server::handle_recv(pollfd &pfd) {
         // r < 0 = error (or just full buffer etc), r == 0 = bye, r > 0 = msg
         ssize_t r = recv(pfd.fd, buf, sizeof buf, 0);
         if (r > 0) {
+            if (r == 1 && buf[0] == '\n') {
+                continue; // Ignore this
+            }
             // Received valid data
             if (DEBUG) {
                 std::cout << "Received: " << buf;
