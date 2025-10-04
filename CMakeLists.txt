@@ -12,6 +12,7 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 # Library cpp files
 add_library(chat
     src/server.cc
+    src/misc.cc
 )
 
 add_executable(chatter src/main.cc)

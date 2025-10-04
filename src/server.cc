@@ -1,8 +1,8 @@
 #include "server.hpp"
+#include "misc.hpp"
 #include <arpa/inet.h>
 #include <cassert>
 #include <cerrno>
-#include <chrono>
 #include <cstring>
 #include <ctime>
 #include <fcntl.h>
@@ -28,8 +28,6 @@ struct AddrInfoDeleter {
         }
     }
 };
-
-std::string get_timestamp();
 
 Server::Server() {
     m_port = "5000";
@@ -267,7 +265,8 @@ int Server::handle_recv(pollfd &pfd) {
                 std::string msg = c->inbuf.substr(0, pos + 1); // Including \n
                 c->inbuf.erase(0, pos + 1);
 
-                std::string prepend_string = get_timestamp() + c->name + ": ";
+                std::string prepend_string =
+                    chat::get_timestamp() + c->name + ": ";
                 msg.insert(0, prepend_string);
 
                 // Add to all people's outqueue
@@ -338,18 +337,6 @@ Server::Client &Server::get_client(int fd) {
         }
     }
     throw std::runtime_error("No such client.");
-}
-
-std::string get_timestamp() {
-    auto now = std::chrono::system_clock::now();
-    std::time_t t = std::chrono::system_clock::to_time_t(now);
-
-    std::tm tm{};
-    localtime_r(&t, &tm);
-    std::ostringstream oss;
-    oss << "[" << std::setw(2) << std::setfill('0') << tm.tm_hour << ":"
-        << std::setw(2) << std::setfill('0') << tm.tm_min << "]";
-    return oss.str();
 }
 
 } // namespace chat
