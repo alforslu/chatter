@@ -1,3 +1,4 @@
+#include "client.hpp"
 #include "server.hpp"
 #include <algorithm>
 #include <cctype>
@@ -7,7 +8,18 @@
 int main(int argc, char *argv[]) {
     if (argc == 1) {
         // Start client
-        std::cout << "Client" << std::endl;
+        chat::Client client = chat::Client();
+        for (;;) {
+            // If setup broke, try again
+            int res = client.setup();
+            if (res == -1) {
+                std::cout << "Failed to connect... Please try again."
+                          << std::endl;
+            } else {
+                break;
+            }
+        }
+        // client.run(); 
         return 0;
     }
     if (argc == 2) {
