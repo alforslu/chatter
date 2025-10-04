@@ -1,4 +1,5 @@
 #include <chrono>
+#include <iostream>
 
 namespace chat {
 
@@ -13,4 +14,7 @@ std::string get_timestamp() {
         << std::setw(2) << std::setfill('0') << tm.tm_min << "]";
     return oss.str();
 }
+
+void clear_terminal() { std::cout << "\033[2J\033[H"; }
+
 } // namespace chat
