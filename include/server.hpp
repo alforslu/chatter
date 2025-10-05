@@ -39,6 +39,10 @@ class Server {
     void remove_client(int fd);
     int handle_recv(pollfd &pfd);
     Client &get_client(int fd);
+    // To all users
+    void queue_message(std::string &msg);
+    // To specific user
+    void queue_message(std::string &msg, int fd);
 };
 
 } // namespace chat

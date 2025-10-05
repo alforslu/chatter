@@ -290,21 +290,12 @@ int Server::handle_recv(pollfd &pfd) {
                 }
                 msg.insert(0, prepend_string);
 
-                // Add to all people's outqueue
-                for (Client &c : m_clients) {
-                    if (!is_command) {
-                        // NOTE: Disables the repeat message back to client,
-                        // this will depend on how client implementation is
-                        // Currently testing using nc which keeps the input
-                        if (c.fd == pfd.fd && DEBUG) {
-                            continue;
-                        }
-                        c.outbuf.push(msg);
-
-                    } else if (is_command && c.fd == pfd.fd) {
-                        // Only send command msg to sender
-                        c.outbuf.push(msg);
-                    }
+                if (!is_command) {
+                    // Add to all people's outqueue
+                    queue_message(msg);
+                } else {
+                    // Only sender receives it
+                    queue_message(msg, c->fd);
                 }
             }
 
@@ -319,6 +310,17 @@ int Server::handle_recv(pollfd &pfd) {
     }
 
     return 0;
+}
+
+void Server::queue_message(std::string &msg) {
+    for (Client &c : m_clients) {
+        c.outbuf.push(msg);
+    }
+}
+
+void Server::queue_message(std::string &msg, int fd) {
+    Client &c = get_client(fd);
+    c.outbuf.push(msg);
 }
 
 int Server::handle_command(std::string &cmd, int fd) {
