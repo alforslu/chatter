@@ -34,6 +34,7 @@ class Server {
 
     // Functions
     int handle_command(std::string &cmd, int fd);
+    void send_messages(Client &c);
     void broadcast_messages();
     void accept_all();
     void remove_client(int fd);

@@ -177,14 +177,10 @@ void Server::run() {
 
             // Handle outgoing messages (this should be rare)
             if (pfd.revents & POLLOUT) {
-                // WARN: Look into if this is fine?
-                // I don't see why it shouldn't be
-                // I'm rebroadcasting to everyone that
-                // don't have all the messages.
-                // This includes the ones that aren't ready, but they'll just
-                // error again? Which is fine. It is a little bit of double work
-                // but that doesn't matter at this scale
-                broadcast_messages();
+                // Tries to send messages to only the person with POLLOUT set
+                // meaning it is now ready to receive data
+                // because it stopped it before
+                send_messages(get_client(pfd.fd));
             }
         }
     }
@@ -192,41 +188,45 @@ void Server::run() {
 
 void Server::broadcast_messages() {
     for (Client &c : m_clients) {
-        for (;;) {
-            if (c.outbuf.empty()) {
+        send_messages(c);
+    }
+}
+
+void Server::send_messages(Client &c) {
+    for (;;) {
+        if (c.outbuf.empty()) {
+            break;
+        }
+
+        int sent;
+        std::string &msg = c.outbuf.front();
+        const char *offset_msg = msg.data() + c.offset;
+        size_t remainder = msg.size() - c.offset;
+
+        sent = send(c.fd, offset_msg, remainder, MSG_NOSIGNAL);
+        // Valid sent
+        if (sent > 0) {
+            // Increase the offset with what was sent
+            // If this is equal to the msg length
+            // Then we know we sent the entire thing.
+            c.offset += sent;
+
+            if (c.offset == msg.length()) {
+                c.outbuf.pop(); // Remove from the queue
+                c.offset = 0;
+            }
+        } else if (sent < 0) {
+            if (errno == EAGAIN) {
+                break; // Can't send more RN
+            } else {
+                remove_client(c.fd);
                 break;
             }
-
-            int sent;
-            std::string &msg = c.outbuf.front();
-            const char *offset_msg = msg.data() + c.offset;
-            size_t remainder = msg.size() - c.offset;
-
-            sent = send(c.fd, offset_msg, remainder, MSG_NOSIGNAL);
-            // Valid sent
-            if (sent > 0) {
-                // Increase the offset with what was sent
-                // If this is equal to the msg length
-                // Then we know we sent the entire thing.
-                c.offset += sent;
-
-                if (c.offset == msg.length()) {
-                    c.outbuf.pop(); // Remove from the queue
-                    c.offset = 0;
-                }
-            } else if (sent < 0) {
-                if (errno == EAGAIN) {
-                    break; // Can't send more RN
-                } else {
-                    remove_client(c.fd);
-                    break;
-                }
-            } else {
-                std::cerr << "[ERROR > broadcast_messages] This shouldn't "
-                             "happen, sent = 0"
-                          << std::endl;
-                break; // This shouldn't happen
-            }
+        } else {
+            std::cerr << "[ERROR > broadcast_messages] This shouldn't "
+                         "happen, sent = 0"
+                      << std::endl;
+            break; // This shouldn't happen
         }
     }
 }
