@@ -1,8 +1,6 @@
 #include "client.hpp"
 #include "misc.hpp"
 #include "server.hpp"
-#include <algorithm>
-#include <cctype>
 #include <iostream>
 #include <string>
 
