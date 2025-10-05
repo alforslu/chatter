@@ -33,6 +33,7 @@ class Server {
     int m_sockfd;
 
     // Functions
+    int handle_command(std::string &cmd, int fd);
     void broadcast_messages();
     void accept_all();
     void remove_client(int fd);

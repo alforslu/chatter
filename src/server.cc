@@ -13,7 +13,7 @@
 #include <stdexcept>
 #include <sys/socket.h>
 
-constexpr bool DEBUG = false;
+constexpr bool DEBUG = true;
 
 namespace chat {
 
@@ -265,22 +265,46 @@ int Server::handle_recv(pollfd &pfd) {
             size_t pos;
             // (while pos is not last character of a string)
             while ((pos = c->inbuf.find("\n")) != std::string::npos) {
+                bool is_command = false;
+
                 std::string msg = c->inbuf.substr(0, pos + 1); // Including \n
                 c->inbuf.erase(0, pos + 1);
+                if (!msg.empty() && msg[0] == '/') {
+                    // Command
+                    is_command = true;
+                    int result = handle_command(msg, pfd.fd);
+                    if (result != 0) {
+                        // Some error
+                        msg = "Invalid command.\n";
+                    } else {
+                        msg = "Successful command.\n";
+                    }
+                }
 
-                std::string prepend_string =
-                    chat::get_timestamp() + c->name + ": ";
+                std::string prepend_string{};
+                if (is_command) {
+                    // Remove name if command
+                    prepend_string = chat::get_timestamp();
+                } else {
+                    prepend_string = chat::get_timestamp() + c->name + ": ";
+                }
                 msg.insert(0, prepend_string);
 
                 // Add to all people's outqueue
                 for (Client &c : m_clients) {
-                    // NOTE: Disables the repeat message back to client, this
-                    // will depend on how client implementation is
-                    // Currently testing using nc which keeps the input
-                    if (c.fd == pfd.fd && DEBUG) {
-                        continue;
+                    if (!is_command) {
+                        // NOTE: Disables the repeat message back to client,
+                        // this will depend on how client implementation is
+                        // Currently testing using nc which keeps the input
+                        if (c.fd == pfd.fd && DEBUG) {
+                            continue;
+                        }
+                        c.outbuf.push(msg);
+
+                    } else if (is_command && c.fd == pfd.fd) {
+                        // Only send command msg to sender
+                        c.outbuf.push(msg);
                     }
-                    c.outbuf.push(msg);
                 }
             }
 
@@ -292,6 +316,42 @@ int Server::handle_recv(pollfd &pfd) {
             remove_client(pfd.fd);
             return -1;
         }
+    }
+
+    return 0;
+}
+
+int Server::handle_command(std::string &cmd, int fd) {
+    // Return value of -1 means invalid command
+    if (cmd.find(" ") == std::string::npos) {
+        // No arguments provided
+        // Nothing for this command atm
+        return -1;
+    }
+    std::string command = cmd.substr(1, cmd.find(" ") - 1);
+    // Don't include nl
+    std::string arg =
+        cmd.substr(cmd.find(" ") + 1, cmd.find('\n') - cmd.find(" ") - 1);
+
+    if (arg.length() > 16) {
+        // Arbitrary length limit
+        return -1;
+    }
+    if (arg.find(" ") != std::string::npos) {
+        // Several args, not supported atm
+        return -1;
+    }
+
+    if (DEBUG) {
+        std::cout << "cmd: " << command << std::endl;
+        std::cout << "arg: " << arg << std::endl;
+    }
+
+    if (command == "setname") {
+        Client &c = get_client(fd);
+        c.name = arg;
+    } else {
+        return -1;
     }
 
     return 0;
