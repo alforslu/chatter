@@ -13,7 +13,7 @@
 #include <stdexcept>
 #include <sys/socket.h>
 
-constexpr bool DEBUG = true;
+constexpr bool DEBUG = false;
 
 namespace chat {
 
@@ -376,6 +376,11 @@ void Server::accept_all() {
             // Create a client and push it to the vector
             Client c = {fd, "Anonymous", {}, {}, 0};
             m_clients.push_back(c);
+
+            // Send msg that user joined
+            std::string c_msg =
+                get_timestamp() + "A user has joined the room.\n";
+            queue_message(c_msg);
         }
     }
 }
@@ -387,6 +392,10 @@ void Server::remove_client(int fd) {
                 std::cout << "Disconnected: " << fd << std::endl;
             }
             close(fd);
+            // Send message to all users that this user is no more... RIP
+            std::string d_msg = get_timestamp() + "User " + m_clients[i].name +
+                                " has disconnected.\n";
+            queue_message(d_msg);
             std::swap(m_clients[i], m_clients.back()); // Move to back
             m_clients.pop_back();                      // Remove last
             // This is fast, one swap and one pop. Better than
