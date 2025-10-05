@@ -1,4 +1,5 @@
 #include "client.hpp"
+#include "misc.hpp"
 #include "server.hpp"
 #include <algorithm>
 #include <cctype>
@@ -19,13 +20,12 @@ int main(int argc, char *argv[]) {
                 break;
             }
         }
-        // client.run(); 
+        // client.run();
         return 0;
     }
     if (argc == 2) {
         std::string arg = argv[1]; // Safer than strcmp
-        std::transform(arg.begin(), arg.end(), arg.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
+        chat::to_lower(arg);
 
         if (arg == "--server") {
             chat::Server server = chat::Server();

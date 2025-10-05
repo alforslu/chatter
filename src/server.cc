@@ -347,6 +347,7 @@ int Server::handle_command(std::string &cmd, int fd) {
         std::cout << "arg: " << arg << std::endl;
     }
 
+    chat::to_lower(command);
     if (command == "setname") {
         Client &c = get_client(fd);
         c.name = arg;

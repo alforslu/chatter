@@ -3,6 +3,11 @@
 
 namespace chat {
 
+void to_lower(std::string &str) {
+    std::transform(str.begin(), str.end(), str.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+}
+
 std::string get_timestamp() {
     auto now = std::chrono::system_clock::now();
     std::time_t t = std::chrono::system_clock::to_time_t(now);
